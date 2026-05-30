@@ -18,5 +18,6 @@ export interface ArticleStore {
   setQueue(items: ListenQueueItem[]): Promise<void>;
 
   getAudioJob(articleId: string): Promise<AudioJob | null>;
+  getAudioJobs(): Promise<AudioJob[]>;
   upsertAudioJob(job: AudioJob): Promise<void>;
 }

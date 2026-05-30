@@ -35,6 +35,8 @@ export type AudioJob = {
   totalChunks: number;
   completedChunks: number;
   segments: AudioSegment[];
+  /** Failure detail surfaced from the backend, shown in the UI. */
+  error?: string;
 };
 
 export type ListenQueueItem = {
