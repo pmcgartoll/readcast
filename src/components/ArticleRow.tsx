@@ -1,8 +1,15 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { fonts, radii, spacing, useTheme } from '../theme';
-import type { Article } from '../types';
+import type { Article, AudioJob } from '../types';
 import { formatRelativeTime } from '../services/format';
 import { ProgressBar } from './ProgressBar';
 import { StatusPill } from './StatusPill';
@@ -14,6 +21,9 @@ type Props = {
   onEnqueue: () => void;
   isPlaying?: boolean;
   isQueued?: boolean;
+  /** Current audio processing job for this article, if any. */
+  audioJob?: AudioJob;
+  onRetryAudio?: () => void;
 };
 
 export function ArticleRow({
@@ -23,9 +33,22 @@ export function ArticleRow({
   onEnqueue,
   isPlaying,
   isQueued,
+  audioJob,
+  onRetryAudio,
 }: Props) {
   const { colors } = useTheme();
   const ready = article.status === 'ready';
+
+  // Audio pipeline sub-state, only meaningful once the article is ingested.
+  const audioStatus = audioJob?.status;
+  const audioReady = ready && audioStatus === 'ready';
+  const audioFailed = ready && audioStatus === 'failed';
+  const audioPreparing = ready && !audioReady && !audioFailed;
+  const { completedChunks = 0, totalChunks = 0 } = audioJob ?? {};
+  const preparingLabel =
+    totalChunks > 0 && completedChunks > 0
+      ? `Preparing audio… ${completedChunks}/${totalChunks}`
+      : 'Preparing audio…';
 
   return (
     <Pressable
@@ -64,7 +87,7 @@ export function ArticleRow({
         </View>
       </View>
 
-      {ready ? (
+      {audioReady ? (
         <View style={styles.actions}>
           <Pressable
             testID={`listen-button-${article.id}`}
@@ -94,6 +117,42 @@ export function ArticleRow({
             <Text style={[styles.listenLabel, { color: isQueued ? colors.success : colors.text }]}>
               {isQueued ? '✓ Queued' : '＋ Queue'}
             </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {audioPreparing ? (
+        <View
+          testID={`audio-status-${article.id}`}
+          style={[styles.audioStatus, { backgroundColor: colors.surfaceMuted }]}
+        >
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={[styles.audioStatusText, { color: colors.textMuted }]}>
+            {preparingLabel}
+          </Text>
+        </View>
+      ) : null}
+
+      {audioFailed ? (
+        <View
+          testID={`audio-status-${article.id}`}
+          style={[styles.audioStatus, { backgroundColor: colors.surfaceMuted }]}
+        >
+          <Text style={[styles.audioStatusText, { color: colors.danger, flex: 1 }]}>
+            Audio unavailable
+          </Text>
+          <Pressable
+            testID={`retry-audio-button-${article.id}`}
+            accessibilityRole="button"
+            accessibilityLabel="Retry audio processing"
+            onPress={onRetryAudio}
+            style={({ pressed }) => [
+              styles.retryBtn,
+              { borderColor: colors.accent },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={[styles.retryLabel, { color: colors.accent }]}>↻ Retry</Text>
           </Pressable>
         </View>
       ) : null}
@@ -165,6 +224,28 @@ const styles = StyleSheet.create({
   listenLabel: {
     fontFamily: fonts.medium,
     fontSize: 14,
+  },
+  audioStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+  },
+  audioStatusText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  retryBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  retryLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
   progress: {
     marginTop: 2,
