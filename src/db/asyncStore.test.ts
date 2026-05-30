@@ -71,4 +71,41 @@ describe('asyncStore', () => {
     expect(job?.status).toBe('ready');
     expect(job?.segments).toHaveLength(1);
   });
+
+  it('persists an audio job error and lists all jobs', async () => {
+    const store = createAsyncStore();
+    await store.upsertAudioJob({
+      articleId: 'a',
+      status: 'failed',
+      totalChunks: 1,
+      completedChunks: 0,
+      segments: [],
+      error: 'tts down',
+    });
+    await store.upsertAudioJob({
+      articleId: 'b',
+      status: 'ready',
+      totalChunks: 1,
+      completedChunks: 1,
+      segments: [{ index: 0, uri: 's0', durationMs: 100 }],
+    });
+
+    expect((await store.getAudioJob('a'))?.error).toBe('tts down');
+    const all = await store.getAudioJobs();
+    expect(all.map((j) => j.articleId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('removes the audio job when the article is deleted', async () => {
+    const store = createAsyncStore();
+    await store.upsertArticle(article('a', 1));
+    await store.upsertAudioJob({
+      articleId: 'a',
+      status: 'ready',
+      totalChunks: 1,
+      completedChunks: 1,
+      segments: [],
+    });
+    await store.deleteArticle('a');
+    expect(await store.getAudioJob('a')).toBeNull();
+  });
 });

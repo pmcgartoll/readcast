@@ -131,9 +131,13 @@ flowchart LR
     Engine["PlaybackEngine seam"]
   end
 
-  subgraph Backend["Hono API (Node)"]
+  subgraph Backend["Hono API (Node) — stateful"]
     Ingest["POST /articles/ingest"]
-    Audio["POST /articles/:id/audio"]
+    AudioApi["POST/GET /articles/:id/audio (+ /retry)"]
+    Serve["GET /audio/&lt;hash&gt;/&lt;idx&gt;"]
+    Worker["Async TTS worker"]
+    JobsDb[("node:sqlite jobs + segments")]
+    AudioFiles[("audio files on disk")]
   end
 
   subgraph External["External Services"]
@@ -149,7 +153,13 @@ flowchart LR
 
   Ingest --> Web
   Ingest -->|"Mozilla Readability"| Ingest
-  Audio --> OAI
+  AudioApi --> JobsDb
+  AudioApi -->|"enqueue"| Worker
+  Worker -->|"dedup by content_hash"| JobsDb
+  Worker --> OAI
+  Worker --> AudioFiles
+  Serve --> AudioFiles
+  Engine -.->|"download segments (expo-file-system)"| Serve
 
   Store -->|"native"| SQLite[("expo-sqlite")]
   Store -->|"web / tests"| Async[("AsyncStorage")]
@@ -182,13 +192,15 @@ flowchart TB
 
   subgraph Providers["State"]
     LP["LibraryProvider"]
+    AP["AudioProcessingProvider"]
     PP["PlaybackProvider"]
     SP["SettingsProvider"]
   end
 
   subgraph Services["Services"]
     IngestSvc["ingest"]
-    AudioSvc["audio"]
+    AudioSvc["audio (start + poll)"]
+    Download["download / download.web"]
     Utils["textChunk · format · url · readerHtml"]
   end
 
@@ -219,32 +231,27 @@ sequenceDiagram
   actor User
   participant UI as Add URL Screen
   participant Ingest as ingest service
+  participant Proc as AudioProcessingProvider
   participant API as Backend API
   participant Store as ArticleStore
-  participant Audio as audio service
   participant Player as PlaybackEngine
 
   User->>UI: paste URL
   UI->>Ingest: saveArticle(url)
-  alt DEV_STUB_MODE
-    Ingest->>Store: fixture article (ready)
-  else production
-    Ingest->>Store: pending article
-    Ingest->>API: POST /articles/ingest
-    API-->>Ingest: title, html, text
-    Ingest->>Store: ready article
+  Ingest->>Store: pending -> ready article
+
+  Note over Proc: on save, eagerly start processing
+  Proc->>API: POST /articles/:id/audio (chunks)
+  API-->>Proc: job {queued} (or ready if hash cached)
+  loop poll until ready/failed
+    Proc->>API: GET /articles/:id/audio
+    API-->>Proc: status + progress + segment urls
+    Proc->>Store: mirror job status
   end
 
   User->>UI: tap Listen
-  UI->>Audio: generateAudio(article)
-  alt DEV_STUB_MODE
-    Audio->>Store: sample segments
-  else production
-    Audio->>API: POST /articles/:id/audio
-    API-->>Audio: audio segments
-    Audio->>Store: AudioJob + segment URIs
-  end
-  Audio->>Player: load track + play
+  UI->>Proc: ensure(article) (shared in-flight work)
+  Proc->>Player: download segments to cache, load + play
         </pre>
       </div>
     </section>
@@ -260,7 +267,10 @@ sequenceDiagram
             <td>App ↔ Backend</td>
             <td>
               <code>POST /articles/ingest</code> — URL in, extracted article out<br />
-              <code>POST /articles/:id/audio</code> — text chunks + optional voice/instructions in, segments out<br />
+              <code>POST /articles/:id/audio</code> — chunks + optional voice/instructions in, job out (idempotent, non-blocking)<br />
+              <code>GET /articles/:id/audio</code> — poll job status + progress + segment URLs<br />
+              <code>POST /articles/:id/audio/retry</code> — re-enqueue a failed job<br />
+              <code>GET /audio/&lt;hash&gt;/&lt;idx&gt;.&lt;ext&gt;</code> — static audio (immutable)<br />
               <code>GET /health</code> — liveness
             </td>
             <td>JSON over HTTP · <code>fetch</code> via <code>src/services/api.ts</code></td>
@@ -271,8 +281,13 @@ sequenceDiagram
             <td>Node fetch · jsdom</td>
           </tr>
           <tr>
+            <td>Backend ↔ DB / files</td>
+            <td>Job + segment metadata; content-addressed audio files (process-once by content hash)</td>
+            <td>built-in <code>node:sqlite</code> · filesystem under <code>DATA_DIR</code></td>
+          </tr>
+          <tr>
             <td>Backend ↔ TTS</td>
-            <td><code>TtsProvider</code> interface — pluggable mock or OpenAI</td>
+            <td><code>TtsProvider.synthesizeChunk</code> — pluggable mock or OpenAI, raw bytes per chunk</td>
             <td>OpenAI <code>gpt-4o-mini-tts</code> (default voice: cedar)</td>
           </tr>
           <tr>
@@ -314,6 +329,8 @@ sequenceDiagram
             <li><span class="tag">TypeScript</span> · Vitest</li>
             <li>Mozilla Readability extraction</li>
             <li>Pluggable TTS providers (mock / OpenAI)</li>
+            <li><span class="tag">node:sqlite</span> job DB + async worker</li>
+            <li>Content-addressed audio files on disk</li>
             <li>Config via <code>.env</code> (dotenv)</li>
           </ul>
         </div>
@@ -343,8 +360,10 @@ sequenceDiagram
       <ul>
         <li><strong>Seams over branches</strong> — shared code depends on interfaces (<code>ArticleStore</code>, <code>PlaybackEngine</code>); platform files swap implementations.</li>
         <li><strong>Stub-first dev</strong> — <code>DEV_STUB_MODE</code> runs the full ingest → read → listen loop without backend or API keys.</li>
-        <li><strong>Chunked TTS</strong> — long articles split on sentence bounds; backend synthesizes per chunk, app stitches segments into a track.</li>
-        <li><strong>Thin backend</strong> — two POST routes; extraction and TTS are the only server-side concerns. All library state lives on-device.</li>
+        <li><strong>Chunked TTS</strong> — long articles split on sentence bounds; the backend worker synthesizes per chunk, the app stitches segments into a track.</li>
+        <li><strong>Process-once</strong> — audio is synthesized and stored on the backend, keyed by <code>sha256(provider, voice, instructions, chunks)</code>, so new devices/reinstalls never re-bill the TTS provider.</li>
+        <li><strong>Two-tier storage</strong> — backend (node:sqlite + files) is the durable, deduped source of truth; the device downloads segments to a local cache for offline playback. Library/reading state lives on-device.</li>
+        <li><strong>Eager pipeline</strong> — saving an article starts processing immediately; the app polls a status API and surfaces per-row status + retry.</li>
       </ul>
     </section>
   </main>
