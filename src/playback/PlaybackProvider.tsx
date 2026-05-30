@@ -10,6 +10,7 @@ import React, {
 
 import { ensureAudio, totalDurationMs } from '../services/audio';
 import type { Article } from '../types';
+import { getCarPlay } from './carplay';
 import { getEngine } from './engine';
 import type { EngineState } from './types';
 
@@ -40,6 +41,7 @@ const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const engine = useMemo(() => getEngine(), []);
+  const carplay = useMemo(() => getCarPlay(), []);
   const [queue, setQueue] = useState<Article[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [rate, setRate] = useState(1);
@@ -82,6 +84,37 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       unsubEnded();
     };
   }, [engine, loadAndPlay]);
+
+  // Let CarPlay drive selection: tapping an article in the car plays it here.
+  useEffect(() => {
+    return carplay.onSelectArticle((articleId) => {
+      const index = queueRef.current.findIndex((a) => a.id === articleId);
+      if (index >= 0) void loadAndPlay(index);
+    });
+  }, [carplay, loadAndPlay]);
+
+  // Mirror the listen queue to CarPlay.
+  useEffect(() => {
+    carplay.setQueue(
+      queue.map((a) => ({ articleId: a.id, title: a.title, siteName: a.siteName })),
+    );
+  }, [carplay, queue]);
+
+  // Mirror Now Playing to CarPlay (and, on a native build, the lock screen).
+  const current = currentIndex >= 0 ? (queue[currentIndex] ?? null) : null;
+  useEffect(() => {
+    carplay.setNowPlaying(
+      current
+        ? {
+            articleId: current.id,
+            title: current.title,
+            siteName: current.siteName,
+            artworkUrl: current.heroImageUrl,
+            isPlaying: engineState.isPlaying,
+          }
+        : null,
+    );
+  }, [carplay, current, engineState.isPlaying]);
 
   const playArticle = useCallback(
     async (article: Article) => {
@@ -174,7 +207,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const value: PlaybackContextValue = {
     queue,
     currentIndex,
-    current: currentIndex >= 0 ? (queue[currentIndex] ?? null) : null,
+    current,
     isPlaying: engineState.isPlaying,
     isLoading: engineState.isLoading,
     positionMs: engineState.positionMs,

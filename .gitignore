@@ -7,9 +7,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
-ios/
-android/
+# Native (Expo-generated dirs at the repo root)
+/ios/
+/android/
 
 # Metro
 .metro-health-check*
