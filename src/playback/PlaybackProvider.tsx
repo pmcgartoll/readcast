@@ -9,7 +9,9 @@ import React, {
 } from 'react';
 
 import { PLAYBACK_RATES } from '../config';
+import { getStore } from '../db';
 import { totalDurationMs } from '../services/audio';
+import { cacheSegments } from '../services/download';
 import { useAudioProcessing } from '../state/AudioProcessingProvider';
 import { useSettings } from '../state/SettingsProvider';
 import type { Article } from '../types';
@@ -68,13 +70,18 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       if (!article) return;
       setCurrentIndex(index);
       const job = await ensure(article);
+      // Download to the device cache so playback is local + offline-capable.
+      const localized = await cacheSegments(job);
+      if (localized !== job) {
+        await getStore().upsertAudioJob(localized);
+      }
       await engine.load({
         articleId: article.id,
         title: article.title,
         siteName: article.siteName,
         heroImageUrl: article.heroImageUrl,
-        segmentUris: job.segments.map((s) => s.uri),
-        durationMs: totalDurationMs(job),
+        segmentUris: localized.segments.map((s) => s.uri),
+        durationMs: totalDurationMs(localized),
       });
       // Re-apply rate in case the native engine resets it on load.
       await engine.setRate(rateRef.current);
