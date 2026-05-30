@@ -22,6 +22,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { PlaybackProvider } from './src/playback/PlaybackProvider';
 import { LibraryProvider } from './src/state/LibraryProvider';
+import { SettingsProvider } from './src/state/SettingsProvider';
 import { palettes } from './src/theme';
 
 function buildNavTheme(isDark: boolean): NavTheme {
@@ -65,14 +66,16 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <LibraryProvider>
-        <PlaybackProvider>
-          <NavigationContainer ref={navigationRef} theme={buildNavTheme(isDark)}>
-            <RootNavigator />
-          </NavigationContainer>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-        </PlaybackProvider>
-      </LibraryProvider>
+      <SettingsProvider>
+        <LibraryProvider>
+          <PlaybackProvider>
+            <NavigationContainer ref={navigationRef} theme={buildNavTheme(isDark)}>
+              <RootNavigator />
+            </NavigationContainer>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+          </PlaybackProvider>
+        </LibraryProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }

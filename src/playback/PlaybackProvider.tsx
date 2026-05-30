@@ -8,13 +8,13 @@ import React, {
   useState,
 } from 'react';
 
+import { PLAYBACK_RATES } from '../config';
 import { ensureAudio, totalDurationMs } from '../services/audio';
+import { useSettings } from '../state/SettingsProvider';
 import type { Article } from '../types';
 import { getCarPlay } from './carplay';
 import { getEngine } from './engine';
 import type { EngineState } from './types';
-
-const RATES = [1, 1.25, 1.5, 1.75, 2];
 
 export type PlaybackContextValue = {
   queue: Article[];
@@ -34,6 +34,7 @@ export type PlaybackContextValue = {
   skipNext: () => Promise<void>;
   skipPrev: () => Promise<void>;
   cycleRate: () => Promise<void>;
+  setRate: (rate: number) => Promise<void>;
   isQueued: (articleId: string) => boolean;
 };
 
@@ -42,22 +43,35 @@ const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const engine = useMemo(() => getEngine(), []);
   const carplay = useMemo(() => getCarPlay(), []);
+  const { playbackRate, voiceInstructions, setPlaybackRate } = useSettings();
   const [queue, setQueue] = useState<Article[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
-  const [rate, setRate] = useState(1);
   const [engineState, setEngineState] = useState<EngineState>(engine.getState());
 
   const queueRef = useRef(queue);
   const indexRef = useRef(currentIndex);
+  const rateRef = useRef(playbackRate);
+  const instructionsRef = useRef(voiceInstructions);
   queueRef.current = queue;
   indexRef.current = currentIndex;
+  rateRef.current = playbackRate;
+  instructionsRef.current = voiceInstructions;
+
+  // Keep the engine's rate in sync with the saved default (and with changes).
+  useEffect(() => {
+    void engine.setRate(playbackRate);
+  }, [engine, playbackRate]);
 
   const loadAndPlay = useCallback(
     async (index: number) => {
       const article = queueRef.current[index];
       if (!article) return;
       setCurrentIndex(index);
-      const job = await ensureAudio(article);
+      const job = await ensureAudio(
+        article,
+        {},
+        { instructions: instructionsRef.current },
+      );
       await engine.load({
         articleId: article.id,
         title: article.title,
@@ -66,6 +80,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         segmentUris: job.segments.map((s) => s.uri),
         durationMs: totalDurationMs(job),
       });
+      // Re-apply rate in case the native engine resets it on load.
+      await engine.setRate(rateRef.current);
       await engine.play();
     },
     [engine],
@@ -193,11 +209,19 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   }, [engine, engineState.positionMs, loadAndPlay]);
 
   const cycleRate = useCallback(async () => {
-    const idx = RATES.indexOf(rate);
-    const nextRate = RATES[(idx + 1) % RATES.length];
-    setRate(nextRate);
+    const idx = PLAYBACK_RATES.indexOf(rateRef.current);
+    const nextRate = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
+    setPlaybackRate(nextRate);
     await engine.setRate(nextRate);
-  }, [engine, rate]);
+  }, [engine, setPlaybackRate]);
+
+  const setRate = useCallback(
+    async (next: number) => {
+      setPlaybackRate(next);
+      await engine.setRate(next);
+    },
+    [engine, setPlaybackRate],
+  );
 
   const isQueued = useCallback(
     (articleId: string) => queue.some((a) => a.id === articleId),
@@ -212,7 +236,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     isLoading: engineState.isLoading,
     positionMs: engineState.positionMs,
     durationMs: engineState.durationMs,
-    rate,
+    rate: playbackRate,
     playArticle,
     enqueue,
     removeFromQueue,
@@ -222,6 +246,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     skipNext,
     skipPrev,
     cycleRate,
+    setRate,
     isQueued,
   };
 

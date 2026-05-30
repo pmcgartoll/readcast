@@ -7,7 +7,7 @@ import { estimateDurationMs, type TtsProvider } from './types';
  */
 export function createMockProvider(): TtsProvider {
   return {
-    async synthesize(chunks) {
+    async synthesize(chunks, _options) {
       return chunks.map((chunk, index) => ({
         index,
         uri: SAMPLE_AUDIO_URL,

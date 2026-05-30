@@ -25,3 +25,7 @@ export const READING_WPM = 230;
 
 /** Max characters per TTS chunk. Long articles are split on sentence bounds. */
 export const TTS_CHUNK_CHARS = 3500;
+
+/** Selectable playback speeds, and the default applied to new listeners. */
+export const PLAYBACK_RATES: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2];
+export const DEFAULT_PLAYBACK_RATE = 1.25;

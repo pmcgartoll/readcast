@@ -1,16 +1,19 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '../components/AppButton';
-import { DEV_STUB_MODE, API_BASE_URL } from '../config';
+import { DEV_STUB_MODE, API_BASE_URL, PLAYBACK_RATES } from '../config';
 import { useLibrary } from '../state/LibraryProvider';
+import { useSettings } from '../state/SettingsProvider';
 import { fonts, layout, radii, spacing, useTheme } from '../theme';
 
 export function SettingsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { articles, remove } = useLibrary();
+  const { playbackRate, voiceInstructions, setPlaybackRate, setVoiceInstructions } =
+    useSettings();
 
   const clearAll = async () => {
     for (const a of articles) {
@@ -21,10 +24,68 @@ export function SettingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <Text style={[styles.screenTitle, { color: colors.text }]}>Settings</Text>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Section title="Audio" colors={colors}>
-          <Row label="Voice" value="Narrator (default)" colors={colors} />
-          <Row label="Generation" value={DEV_STUB_MODE ? 'Sample (stub mode)' : 'Cloud TTS'} colors={colors} />
+          <Row label="Voice" value="Cedar" colors={colors} />
+          <Row
+            label="Generation"
+            value={DEV_STUB_MODE ? 'Sample (stub mode)' : 'OpenAI · gpt-4o-mini-tts'}
+            colors={colors}
+          />
+        </Section>
+
+        <Section title="Playback speed" colors={colors}>
+          <View style={styles.speedRow}>
+            {PLAYBACK_RATES.map((r) => {
+              const selected = r === playbackRate;
+              return (
+                <Pressable
+                  key={r}
+                  testID={`speed-${r}`}
+                  onPress={() => setPlaybackRate(r)}
+                  style={[
+                    styles.speedChip,
+                    {
+                      backgroundColor: selected ? colors.accent : colors.surfaceMuted,
+                      borderColor: selected ? colors.accent : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.speedChipText,
+                      { color: selected ? colors.accentText : colors.text },
+                    ]}
+                  >
+                    {r}×
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.note, { color: colors.textFaint }]}>
+            Default speed for new listens. You can also change it on the fly from the
+            player.
+          </Text>
+        </Section>
+
+        <Section title="Voice prompt" colors={colors}>
+          <TextInput
+            testID="voice-instructions-input"
+            value={voiceInstructions}
+            onChangeText={setVoiceInstructions}
+            placeholder="e.g. Calm, warm narrator. Speak clearly with relaxed pacing."
+            placeholderTextColor={colors.textFaint}
+            multiline
+            style={[
+              styles.promptInput,
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.border, color: colors.text },
+            ]}
+          />
+          <Text style={[styles.note, { color: colors.textFaint }]}>
+            Steers tone and delivery for the Cedar voice on newly generated audio.
+            Leave blank for default narration.
+          </Text>
         </Section>
 
         <Section title="Sync & Backend" colors={colors}>
@@ -135,5 +196,34 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: fonts.body, fontSize: 15 },
   rowValue: { fontFamily: fonts.body, fontSize: 15, flexShrink: 1, textAlign: 'right' },
   note: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, paddingBottom: spacing.md },
+  speedRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  speedChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    minWidth: 56,
+    alignItems: 'center',
+  },
+  speedChipText: { fontFamily: fonts.medium, fontSize: 14 },
+  promptInput: {
+    minHeight: 92,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
   version: { fontFamily: fonts.body, fontSize: 13, textAlign: 'center', marginTop: spacing.lg },
 });

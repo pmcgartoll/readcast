@@ -19,8 +19,10 @@ lock screen and **CarPlay** (iOS).
   `LibraryProvider`, `PlaybackProvider`, and a themed `NavigationContainer`.
 - **Screens:** `src/screens/` — `LibraryScreen`, `AddUrlScreen`, `ReaderScreen`,
   `ListenScreen`, `SettingsScreen`.
-- **State:** `src/state/LibraryProvider.tsx` (saved articles) and
-  `src/playback/PlaybackProvider.tsx` (listen queue + transport).
+- **State:** `src/state/LibraryProvider.tsx` (saved articles),
+  `src/playback/PlaybackProvider.tsx` (listen queue + transport), and
+  `src/state/SettingsProvider.tsx` (playback speed + custom voice prompt,
+  persisted via AsyncStorage). Default playback speed is 1.25×.
 - **Storage seam:** `src/db/` — `ArticleStore` interface with a SQLite impl
   (`index.native.ts` -> `sqliteStore.ts`) for devices and an AsyncStorage impl
   (`index.ts` -> `asyncStore.ts`) for web/tests. Split by platform so
@@ -37,7 +39,10 @@ lock screen and **CarPlay** (iOS).
   (text, web) — Metro picks the right one per platform.
 - **Backend:** `backend/` — Hono API. `POST /articles/ingest` (Readability
   extraction) and `POST /articles/:id/audio` (pluggable TTS provider; mock by
-  default, OpenAI when keys are set).
+  default, OpenAI when keys are set). The audio route accepts optional `voice`
+  and `instructions` (custom voice prompt) per request. Config is read from
+  `backend/.env` (via `dotenv`, gitignored; see `.env.example`): default
+  provider OpenAI `gpt-4o-mini-tts`, default voice `cedar`.
 
 `DEV_STUB_MODE` (`src/config.ts`) defaults on in development and lets the whole
 ingest -> read -> listen loop run with no backend or keys.

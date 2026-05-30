@@ -15,6 +15,12 @@ export type AudioResult = {
   segments: AudioSegment[];
 };
 
+/** Per-request voice controls forwarded to the backend TTS provider. */
+export type AudioOptions = {
+  voice?: string;
+  instructions?: string;
+};
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
@@ -33,7 +39,15 @@ export const apiClient = {
   ingest(url: string): Promise<IngestResult> {
     return postJson<IngestResult>('/articles/ingest', { url });
   },
-  generateAudio(articleId: string, textChunks: string[]): Promise<AudioResult> {
-    return postJson<AudioResult>(`/articles/${articleId}/audio`, { textChunks });
+  generateAudio(
+    articleId: string,
+    textChunks: string[],
+    options?: AudioOptions,
+  ): Promise<AudioResult> {
+    return postJson<AudioResult>(`/articles/${articleId}/audio`, {
+      textChunks,
+      voice: options?.voice,
+      instructions: options?.instructions,
+    });
   },
 };

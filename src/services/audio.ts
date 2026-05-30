@@ -12,6 +12,12 @@ export type AudioDeps = {
   stub?: boolean;
 };
 
+/** Voice controls forwarded to the TTS backend when generating real audio. */
+export type AudioOptions = {
+  voice?: string;
+  instructions?: string;
+};
+
 async function stubGenerate(chunks: string[]): Promise<AudioSegment[]> {
   await delay(600);
   return chunks.map((chunk, index) => ({
@@ -29,6 +35,7 @@ async function stubGenerate(chunks: string[]): Promise<AudioSegment[]> {
 export async function ensureAudio(
   article: Article,
   deps: AudioDeps = {},
+  options: AudioOptions = {},
 ): Promise<AudioJob> {
   const store = deps.store ?? getStore();
   const stub = deps.stub ?? DEV_STUB_MODE;
@@ -52,7 +59,9 @@ export async function ensureAudio(
     const generate =
       deps.generate ??
       ((id: string, c: string[]) =>
-        stub ? stubGenerate(c) : apiClient.generateAudio(id, c).then((r) => r.segments));
+        stub
+          ? stubGenerate(c)
+          : apiClient.generateAudio(id, c, options).then((r) => r.segments));
     const segments = await generate(article.id, chunks);
     const ready: AudioJob = {
       ...job,

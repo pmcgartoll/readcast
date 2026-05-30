@@ -50,8 +50,14 @@ export function createApp(deps: AppDeps): Hono {
     if (totalChars > MAX_ARTICLE_CHARS) {
       return c.json({ error: 'Article is too long for audio generation.' }, 413);
     }
+    const voice = typeof body?.voice === 'string' ? body.voice : undefined;
+    const instructions =
+      typeof body?.instructions === 'string' ? body.instructions : undefined;
     try {
-      const segments = await deps.ttsProvider.synthesize(chunks);
+      const segments = await deps.ttsProvider.synthesize(chunks, {
+        voice,
+        instructions,
+      });
       return c.json({ segments });
     } catch (err) {
       return c.json(
