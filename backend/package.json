@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx watch src/index.ts",
+    "start": "NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "NODE_OPTIONS=--disable-warning=ExperimentalWarning vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.4",

@@ -9,7 +9,10 @@ import React, {
 } from 'react';
 
 import { PLAYBACK_RATES } from '../config';
-import { ensureAudio, totalDurationMs } from '../services/audio';
+import { getStore } from '../db';
+import { totalDurationMs } from '../services/audio';
+import { cacheSegments } from '../services/download';
+import { useAudioProcessing } from '../state/AudioProcessingProvider';
 import { useSettings } from '../state/SettingsProvider';
 import type { Article } from '../types';
 import { getCarPlay } from './carplay';
@@ -43,7 +46,8 @@ const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const engine = useMemo(() => getEngine(), []);
   const carplay = useMemo(() => getCarPlay(), []);
-  const { playbackRate, voiceInstructions, setPlaybackRate } = useSettings();
+  const { playbackRate, setPlaybackRate } = useSettings();
+  const { ensure } = useAudioProcessing();
   const [queue, setQueue] = useState<Article[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [engineState, setEngineState] = useState<EngineState>(engine.getState());
@@ -51,11 +55,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const queueRef = useRef(queue);
   const indexRef = useRef(currentIndex);
   const rateRef = useRef(playbackRate);
-  const instructionsRef = useRef(voiceInstructions);
   queueRef.current = queue;
   indexRef.current = currentIndex;
   rateRef.current = playbackRate;
-  instructionsRef.current = voiceInstructions;
 
   // Keep the engine's rate in sync with the saved default (and with changes).
   useEffect(() => {
@@ -67,24 +69,25 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       const article = queueRef.current[index];
       if (!article) return;
       setCurrentIndex(index);
-      const job = await ensureAudio(
-        article,
-        {},
-        { instructions: instructionsRef.current },
-      );
+      const job = await ensure(article);
+      // Download to the device cache so playback is local + offline-capable.
+      const localized = await cacheSegments(job);
+      if (localized !== job) {
+        await getStore().upsertAudioJob(localized);
+      }
       await engine.load({
         articleId: article.id,
         title: article.title,
         siteName: article.siteName,
         heroImageUrl: article.heroImageUrl,
-        segmentUris: job.segments.map((s) => s.uri),
-        durationMs: totalDurationMs(job),
+        segmentUris: localized.segments.map((s) => s.uri),
+        durationMs: totalDurationMs(localized),
       });
       // Re-apply rate in case the native engine resets it on load.
       await engine.setRate(rateRef.current);
       await engine.play();
     },
-    [engine],
+    [engine, ensure],
   );
 
   useEffect(() => {

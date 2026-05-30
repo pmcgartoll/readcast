@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticleRow } from '../components/ArticleRow';
 import { EmptyState } from '../components/EmptyState';
 import { usePlayback } from '../playback/PlaybackProvider';
+import { useAudioProcessing } from '../state/AudioProcessingProvider';
 import { useLibrary } from '../state/LibraryProvider';
 import { fonts, layout, radii, spacing, useTheme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -27,6 +28,7 @@ export function LibraryScreen() {
   const navigation = useNavigation<Nav>();
   const { articles, isLoading, refresh } = useLibrary();
   const { playArticle, enqueue, isQueued, current, isPlaying } = usePlayback();
+  const { getJob, retry } = useAudioProcessing();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -98,6 +100,8 @@ export function LibraryScreen() {
               onEnqueue={() => enqueue(item)}
               isPlaying={current?.id === item.id && isPlaying}
               isQueued={isQueued(item.id)}
+              audioJob={getJob(item.id)}
+              onRetryAudio={() => retry(item.id)}
             />
           )}
         />

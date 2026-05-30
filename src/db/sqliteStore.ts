@@ -83,9 +83,17 @@ export function createSqliteStore(): ArticleStore {
           status TEXT NOT NULL,
           totalChunks INTEGER NOT NULL,
           completedChunks INTEGER NOT NULL,
-          segments TEXT NOT NULL
+          segments TEXT NOT NULL,
+          error TEXT
         );
       `);
+      // Migrate older DBs that predate the `error` column.
+      const cols = await d.getAllAsync<{ name: string }>(
+        'PRAGMA table_info(audio_jobs)',
+      );
+      if (!cols.some((c) => c.name === 'error')) {
+        await d.execAsync('ALTER TABLE audio_jobs ADD COLUMN error TEXT');
+      }
     },
 
     async getArticles() {
@@ -177,37 +185,55 @@ export function createSqliteStore(): ArticleStore {
 
     async getAudioJob(articleId) {
       const d = await db();
-      const row = await d.getFirstAsync<{
-        articleId: string;
-        status: AudioJob['status'];
-        totalChunks: number;
-        completedChunks: number;
-        segments: string;
-      }>('SELECT * FROM audio_jobs WHERE articleId = ?', articleId);
-      if (!row) return null;
-      return {
-        articleId: row.articleId,
-        status: row.status,
-        totalChunks: row.totalChunks,
-        completedChunks: row.completedChunks,
-        segments: JSON.parse(row.segments),
-      };
+      const row = await d.getFirstAsync<AudioJobRow>(
+        'SELECT * FROM audio_jobs WHERE articleId = ?',
+        articleId,
+      );
+      return row ? rowToAudioJob(row) : null;
+    },
+
+    async getAudioJobs() {
+      const d = await db();
+      const rows = await d.getAllAsync<AudioJobRow>('SELECT * FROM audio_jobs');
+      return rows.map(rowToAudioJob);
     },
 
     async upsertAudioJob(job) {
       const d = await db();
       await d.runAsync(
-        `INSERT INTO audio_jobs (articleId, status, totalChunks, completedChunks, segments)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO audio_jobs (articleId, status, totalChunks, completedChunks, segments, error)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(articleId) DO UPDATE SET
            status=excluded.status, totalChunks=excluded.totalChunks,
-           completedChunks=excluded.completedChunks, segments=excluded.segments`,
+           completedChunks=excluded.completedChunks, segments=excluded.segments,
+           error=excluded.error`,
         job.articleId,
         job.status,
         job.totalChunks,
         job.completedChunks,
         JSON.stringify(job.segments),
+        job.error ?? null,
       );
     },
+  };
+}
+
+type AudioJobRow = {
+  articleId: string;
+  status: AudioJob['status'];
+  totalChunks: number;
+  completedChunks: number;
+  segments: string;
+  error: string | null;
+};
+
+function rowToAudioJob(row: AudioJobRow): AudioJob {
+  return {
+    articleId: row.articleId,
+    status: row.status,
+    totalChunks: row.totalChunks,
+    completedChunks: row.completedChunks,
+    segments: JSON.parse(row.segments),
+    error: row.error ?? undefined,
   };
 }

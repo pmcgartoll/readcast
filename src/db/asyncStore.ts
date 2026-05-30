@@ -61,6 +61,11 @@ export function createAsyncStore(): ArticleStore {
         KEYS.queue,
         queue.filter((q) => q.articleId !== id),
       );
+      const jobs = await readJson<Record<string, AudioJob>>(KEYS.audioJobs, {});
+      if (jobs[id]) {
+        delete jobs[id];
+        await writeJson(KEYS.audioJobs, jobs);
+      }
     },
 
     async setReadProgress(id, progress) {
@@ -83,6 +88,11 @@ export function createAsyncStore(): ArticleStore {
     async getAudioJob(articleId) {
       const jobs = await readJson<Record<string, AudioJob>>(KEYS.audioJobs, {});
       return jobs[articleId] ?? null;
+    },
+
+    async getAudioJobs() {
+      const jobs = await readJson<Record<string, AudioJob>>(KEYS.audioJobs, {});
+      return Object.values(jobs);
     },
 
     async upsertAudioJob(job) {

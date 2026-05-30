@@ -21,6 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { PlaybackProvider } from './src/playback/PlaybackProvider';
+import { AudioProcessingProvider } from './src/state/AudioProcessingProvider';
 import { LibraryProvider } from './src/state/LibraryProvider';
 import { SettingsProvider } from './src/state/SettingsProvider';
 import { palettes } from './src/theme';
@@ -68,12 +69,14 @@ export default function App() {
     <SafeAreaProvider>
       <SettingsProvider>
         <LibraryProvider>
-          <PlaybackProvider>
-            <NavigationContainer ref={navigationRef} theme={buildNavTheme(isDark)}>
-              <RootNavigator />
-            </NavigationContainer>
-            <StatusBar style={isDark ? 'light' : 'dark'} />
-          </PlaybackProvider>
+          <AudioProcessingProvider>
+            <PlaybackProvider>
+              <NavigationContainer ref={navigationRef} theme={buildNavTheme(isDark)}>
+                <RootNavigator />
+              </NavigationContainer>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
+            </PlaybackProvider>
+          </AudioProcessingProvider>
         </LibraryProvider>
       </SettingsProvider>
     </SafeAreaProvider>
