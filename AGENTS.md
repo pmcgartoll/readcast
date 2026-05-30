@@ -128,4 +128,24 @@ Build to the iOS Simulator and enable the CarPlay external display in Simulator
 - **Keep docs current:** update `AGENTS.md` and `architecture.html` in the same
   commit when product goals, architecture, API boundaries, or verification steps
   change.
-```
+
+## Cursor Cloud specific instructions
+
+- **Package manager:** npm with lockfiles at repo root and `backend/` (no
+  `pnpm`/`yarn`). Node 22.x (preinstalled) works; run installs from `/workspace`.
+- **VM update script** refreshes both trees: `npm install` and
+  `npm install --prefix backend` (see cloud agent `SetupVmEnvironment`).
+- **Default web verification** needs only Expo web on port **8090**; `DEV_STUB_MODE`
+  is on in dev, so the ingest → library → listen loop needs **no backend** and no
+  API keys. Start Metro in a **tmux** session (it is long-running), e.g. session
+  `expo-web-8090`: `npx expo start --web --port 8090`. Port 8081 is often taken on
+  shared VMs — prefer 8090.
+- **Backend** (`cd backend && npm run dev`, port 3000) is optional for stub-mode
+  UI work. `GET /health` returns `{"ok":true}`. Use when testing
+  `EXPO_PUBLIC_STUB_MODE=false` or real/mock TTS routes.
+- **Tier 1 checks** (from repo root): `npm run typecheck`, `npm test`; then
+  `cd backend && npm run typecheck && npm test`. No separate lint script today.
+- **Bundle smoke test** without a browser: curl the web bundle URL documented in
+  Tier 2 above; expect HTTP 200 once Metro is up (first compile may take ~30s).
+- **Native / CarPlay** are out of scope for cloud VMs unless an iOS Simulator is
+  explicitly available; use the web loop and unit tests here.
