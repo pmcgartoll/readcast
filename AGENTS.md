@@ -125,6 +125,7 @@ Build to the iOS Simulator and enable the CarPlay external display in Simulator
 - Read versioned Expo docs before changing Expo APIs:
   https://docs.expo.dev/versions/v56.0.0/
 - **Do not commit:** local review screenshots or `.env` files.
-- **Keep this doc current:** update `AGENTS.md` in the same commit when product
-  goals, architecture, or verification steps change.
+- **Keep docs current:** update `AGENTS.md` and `architecture.html` in the same
+  commit when product goals, architecture, API boundaries, or verification steps
+  change.
 ```
