@@ -29,3 +29,10 @@ export const TTS_CHUNK_CHARS = 3500;
 /** Selectable playback speeds, and the default applied to new listeners. */
 export const PLAYBACK_RATES: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2];
 export const DEFAULT_PLAYBACK_RATE = 1.25;
+
+/** Continuous speed picker range (slider uses 0.05 steps). */
+export const PLAYBACK_RATE_MIN = 0.5;
+export const PLAYBACK_RATE_MAX = 3;
+export const PLAYBACK_RATE_STEP = 0.05;
+/** Quick-pick speeds shown in the player overlay. */
+export const PLAYBACK_RATE_PRESETS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75];

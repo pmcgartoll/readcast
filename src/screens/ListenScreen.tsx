@@ -11,7 +11,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '../components/EmptyState';
+import { SpeedControlOverlay } from '../components/SpeedControlOverlay';
 import { usePlayback } from '../playback/PlaybackProvider';
+import { formatPlaybackRate } from '../services/playbackRate';
 import { formatDuration } from '../services/format';
 import { fonts, layout, radii, spacing, useTheme } from '../theme';
 
@@ -20,6 +22,7 @@ export function ListenScreen() {
   const insets = useSafeAreaInsets();
   const player = usePlayback();
   const [trackWidth, setTrackWidth] = useState(0);
+  const [speedOpen, setSpeedOpen] = useState(false);
 
   const {
     current,
@@ -34,7 +37,7 @@ export function ListenScreen() {
     seekTo,
     skipNext,
     skipPrev,
-    cycleRate,
+    setRate,
     playAt,
     removeFromQueue,
   } = player;
@@ -107,9 +110,22 @@ export function ListenScreen() {
           <ControlButton label="⏭" onPress={skipNext} colors={colors} testID="ctrl-next" />
         </View>
 
-        <Pressable testID="ctrl-rate" onPress={cycleRate} style={styles.rate}>
-          <Text style={[styles.rateLabel, { color: colors.textMuted }]}>Speed {rate}×</Text>
+        <Pressable
+          testID="ctrl-rate"
+          onPress={() => setSpeedOpen(true)}
+          style={styles.rate}
+        >
+          <Text style={[styles.rateLabel, { color: colors.textMuted }]}>
+            Speed {formatPlaybackRate(rate)}
+          </Text>
         </Pressable>
+
+        <SpeedControlOverlay
+          visible={speedOpen}
+          rate={rate}
+          onClose={() => setSpeedOpen(false)}
+          onSelectRate={(r) => void setRate(r)}
+        />
 
         {queue.length > 1 ? (
           <View style={styles.queue}>
