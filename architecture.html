@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReadCast — Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #9aa8bc;
+      --accent: #6b9fd4;
+      --green: #5cb88a;
+      --amber: #d4a35c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      padding: 2.5rem 1.5rem 1.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0 0 .35rem; font-size: 1.75rem; font-weight: 600; }
+    .subtitle { color: var(--muted); margin: 0; font-size: 1rem; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 0 0 .75rem;
+      letter-spacing: .02em;
+    }
+    p, li { color: var(--text); }
+    p.lead { color: var(--muted); margin-top: 0; }
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .mermaid { text-align: center; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .92rem;
+    }
+    th, td {
+      text-align: left;
+      padding: .6rem .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+    td:first-child { font-weight: 500; white-space: nowrap; }
+    .tag {
+      display: inline-block;
+      font-size: .75rem;
+      padding: .15rem .45rem;
+      border-radius: 4px;
+      background: rgba(107, 159, 212, .15);
+      color: var(--accent);
+      margin-right: .25rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .card h3 { margin: 0 0 .5rem; font-size: .95rem; }
+    .card ul { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: .88rem; }
+    code {
+      font-family: ui-monospace, monospace;
+      font-size: .85em;
+      background: rgba(255,255,255,.06);
+      padding: .1rem .35rem;
+      border-radius: 4px;
+    }
+    footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem 2rem;
+      color: var(--muted);
+      font-size: .82rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ReadCast Architecture</h1>
+    <p class="subtitle">Personal read-later + listen app — high-level stack overview</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Overview</h2>
+      <p class="lead">
+        ReadCast saves article URLs, extracts readable content, stores it locally, and plays
+        it back as a podcast-style queue. The mobile app (iOS/Android via Expo) talks to an
+        optional Hono backend for article extraction and TTS. In development,
+        <code>DEV_STUB_MODE</code> bypasses the backend entirely.
+      </p>
+    </section>
+
+    <section>
+      <h2>System Context</h2>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  subgraph Client["Mobile / Web Client"]
+    UI["Screens + Components"]
+    State["Library · Settings · Playback"]
+    Store["ArticleStore seam"]
+    Engine["PlaybackEngine seam"]
+  end
+
+  subgraph Backend["Hono API (Node)"]
+    Ingest["POST /articles/ingest"]
+    Audio["POST /articles/:id/audio"]
+  end
+
+  subgraph External["External Services"]
+    Web["Article URLs"]
+    OAI["OpenAI TTS"]
+  end
+
+  UI --> State
+  State --> Store
+  State --> Engine
+  State -->|"apiClient (prod)"| Backend
+  State -.->|"fixtures (DEV_STUB_MODE)"| UI
+
+  Ingest --> Web
+  Ingest -->|"Mozilla Readability"| Ingest
+  Audio --> OAI
+
+  Store -->|"native"| SQLite[("expo-sqlite")]
+  Store -->|"web / tests"| Async[("AsyncStorage")]
+  Engine -->|"native"| TrackPlayer["react-native-track-player"]
+  Engine -->|"web / dev"| Stub["Simulated engine"]
+  Engine --> CarPlay["CarPlay (iOS)"]
+        </pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>Client Layers</h2>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TB
+  App["App.tsx — fonts, providers, NavigationContainer"]
+
+  subgraph Nav["Navigation"]
+    Stack["Native Stack"]
+    Tabs["Bottom Tabs"]
+  end
+
+  subgraph Screens["Screens"]
+    Lib["Library"]
+    Add["Add URL"]
+    Read["Reader"]
+    Listen["Listen"]
+    Set["Settings"]
+  end
+
+  subgraph Providers["State"]
+    LP["LibraryProvider"]
+    PP["PlaybackProvider"]
+    SP["SettingsProvider"]
+  end
+
+  subgraph Services["Services"]
+    IngestSvc["ingest"]
+    AudioSvc["audio"]
+    Utils["textChunk · format · url · readerHtml"]
+  end
+
+  subgraph Seams["Platform Seams"]
+    DB["ArticleStore"]
+    PE["PlaybackEngine"]
+    RC["ReaderContent"]
+    CP["carplay"]
+  end
+
+  App --> Nav
+  Nav --> Screens
+  Screens --> Providers
+  Providers --> Services
+  Services --> DB
+  PP --> PE
+  PP --> CP
+  Read --> RC
+        </pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>Data Flow — Save → Read → Listen</h2>
+      <div class="diagram">
+        <pre class="mermaid">
+sequenceDiagram
+  actor User
+  participant UI as Add URL Screen
+  participant Ingest as ingest service
+  participant API as Backend API
+  participant Store as ArticleStore
+  participant Audio as audio service
+  participant Player as PlaybackEngine
+
+  User->>UI: paste URL
+  UI->>Ingest: saveArticle(url)
+  alt DEV_STUB_MODE
+    Ingest->>Store: fixture article (ready)
+  else production
+    Ingest->>Store: pending article
+    Ingest->>API: POST /articles/ingest
+    API-->>Ingest: title, html, text
+    Ingest->>Store: ready article
+  end
+
+  User->>UI: tap Listen
+  UI->>Audio: generateAudio(article)
+  alt DEV_STUB_MODE
+    Audio->>Store: sample segments
+  else production
+    Audio->>API: POST /articles/:id/audio
+    API-->>Audio: audio segments
+    Audio->>Store: AudioJob + segment URIs
+  end
+  Audio->>Player: load track + play
+        </pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>API Boundaries</h2>
+      <table>
+        <thead>
+          <tr><th>Boundary</th><th>Contract</th><th>Technologies</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>App ↔ Backend</td>
+            <td>
+              <code>POST /articles/ingest</code> — URL in, extracted article out<br />
+              <code>POST /articles/:id/audio</code> — text chunks + optional voice/instructions in, segments out<br />
+              <code>GET /health</code> — liveness
+            </td>
+            <td>JSON over HTTP · <code>fetch</code> via <code>src/services/api.ts</code></td>
+          </tr>
+          <tr>
+            <td>Backend ↔ Web</td>
+            <td>Fetch raw HTML from article URLs</td>
+            <td>Node fetch · jsdom</td>
+          </tr>
+          <tr>
+            <td>Backend ↔ TTS</td>
+            <td><code>TtsProvider</code> interface — pluggable mock or OpenAI</td>
+            <td>OpenAI <code>gpt-4o-mini-tts</code> (default voice: cedar)</td>
+          </tr>
+          <tr>
+            <td>App ↔ Storage</td>
+            <td><code>ArticleStore</code> — articles, queue, audio jobs, read progress</td>
+            <td>SQLite (native) · AsyncStorage (web/tests)</td>
+          </tr>
+          <tr>
+            <td>App ↔ Playback</td>
+            <td><code>PlaybackEngine</code> — load, play, pause, seek, rate</td>
+            <td>track-player (native) · stub engine (web/dev)</td>
+          </tr>
+          <tr>
+            <td>App ↔ CarPlay</td>
+            <td>Now Playing + queue sync (iOS only)</td>
+            <td>Native module + Expo config plugin</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Technology by Area</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Client App</h3>
+          <ul>
+            <li><span class="tag">Expo SDK 56</span> <span class="tag">React Native 0.85</span></li>
+            <li><span class="tag">TypeScript</span> <span class="tag">React 19</span></li>
+            <li>React Navigation — stack + tabs</li>
+            <li>WebView reader (native) · plain text (web)</li>
+            <li>Jest + Testing Library (unit)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Backend</h3>
+          <ul>
+            <li><span class="tag">Hono</span> on Node (<span class="tag">tsx</span>)</li>
+            <li><span class="tag">TypeScript</span> · Vitest</li>
+            <li>Mozilla Readability extraction</li>
+            <li>Pluggable TTS providers (mock / OpenAI)</li>
+            <li>Config via <code>.env</code> (dotenv)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Platform Seams</h3>
+          <ul>
+            <li><code>src/db/</code> — store interface, platform-specific impl</li>
+            <li><code>src/playback/</code> — engine + CarPlay hooks</li>
+            <li><code>ReaderContent.*</code> — Metro platform resolution</li>
+            <li>Keeps native modules out of web bundle</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Targets</h3>
+          <ul>
+            <li><strong>Ship:</strong> iOS + Android (Expo dev client)</li>
+            <li><strong>Verify:</strong> Web preview (stub mode, no keys)</li>
+            <li><strong>Phase 3:</strong> CarPlay (iOS Simulator manual)</li>
+            <li><strong>Later:</strong> Maestro native e2e</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Key Design Choices</h2>
+      <ul>
+        <li><strong>Seams over branches</strong> — shared code depends on interfaces (<code>ArticleStore</code>, <code>PlaybackEngine</code>); platform files swap implementations.</li>
+        <li><strong>Stub-first dev</strong> — <code>DEV_STUB_MODE</code> runs the full ingest → read → listen loop without backend or API keys.</li>
+        <li><strong>Chunked TTS</strong> — long articles split on sentence bounds; backend synthesizes per chunk, app stitches segments into a track.</li>
+        <li><strong>Thin backend</strong> — two POST routes; extraction and TTS are the only server-side concerns. All library state lives on-device.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Generated from the ReadCast codebase · Open <code>architecture.html</code> in a browser to view diagrams.
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#1a2332',
+        primaryTextColor: '#e7ecf3',
+        primaryBorderColor: '#2d3a4f',
+        lineColor: '#6b9fd4',
+        secondaryColor: '#243044',
+        tertiaryColor: '#0f1419',
+      },
+      flowchart: { curve: 'basis' },
+    });
+  </script>
+</body>
+</html>
