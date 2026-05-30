@@ -1,7 +1,7 @@
 import { DEV_STUB_MODE } from '../config';
 import { getStore } from '../db';
 import type { ArticleStore } from '../db/types';
-import { stubArticleForUrl } from '../fixtures/articles';
+import { nextStubArticle } from '../fixtures/articles';
 import type { Article } from '../types';
 import { apiClient, type IngestResult } from './api';
 import { createId } from './id';
@@ -23,7 +23,7 @@ async function defaultFetchContent(
   if (stub) {
     // Simulate network latency so loading states are visible in the preview.
     await delay(450);
-    const article = stubArticleForUrl(url);
+    const article = nextStubArticle();
     return {
       title: article.title,
       siteName: article.siteName,

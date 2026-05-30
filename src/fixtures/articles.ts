@@ -66,6 +66,15 @@ export function stubArticleForUrl(url: string): StubArticle {
   return STUB_ARTICLES[hash % STUB_ARTICLES.length];
 }
 
+let rotation = 0;
+
+/** Rotates through fixtures so successive saves look varied in the demo. */
+export function nextStubArticle(): StubArticle {
+  const article = STUB_ARTICLES[rotation % STUB_ARTICLES.length];
+  rotation += 1;
+  return article;
+}
+
 /** A short, freely-usable sample audio clip used for stubbed playback. */
 export const SAMPLE_AUDIO_URL =
   'https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg';

@@ -85,21 +85,39 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
   const playArticle = useCallback(
     async (article: Article) => {
-      setQueue([article]);
-      queueRef.current = [article];
-      await loadAndPlay(0);
+      const existing = queueRef.current.findIndex((a) => a.id === article.id);
+      if (existing >= 0) {
+        await loadAndPlay(existing);
+        return;
+      }
+      const next = [...queueRef.current, article];
+      queueRef.current = next;
+      setQueue(next);
+      await loadAndPlay(next.length - 1);
     },
     [loadAndPlay],
   );
 
-  const enqueue = useCallback((article: Article) => {
-    setQueue((prev) =>
-      prev.some((a) => a.id === article.id) ? prev : [...prev, article],
-    );
-  }, []);
+  const enqueue = useCallback(
+    (article: Article) => {
+      if (queueRef.current.some((a) => a.id === article.id)) return;
+      const next = [...queueRef.current, article];
+      queueRef.current = next;
+      setQueue(next);
+      // If nothing is loaded yet, start the newly queued item.
+      if (indexRef.current < 0) {
+        void loadAndPlay(next.length - 1);
+      }
+    },
+    [loadAndPlay],
+  );
 
   const removeFromQueue = useCallback((articleId: string) => {
-    setQueue((prev) => prev.filter((a) => a.id !== articleId));
+    const currentId = queueRef.current[indexRef.current]?.id;
+    const next = queueRef.current.filter((a) => a.id !== articleId);
+    queueRef.current = next;
+    setQueue(next);
+    setCurrentIndex(currentId ? next.findIndex((a) => a.id === currentId) : -1);
   }, []);
 
   const playAt = useCallback(

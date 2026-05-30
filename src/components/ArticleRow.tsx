@@ -11,10 +11,19 @@ type Props = {
   article: Article;
   onPress: () => void;
   onListen: () => void;
+  onEnqueue: () => void;
   isPlaying?: boolean;
+  isQueued?: boolean;
 };
 
-export function ArticleRow({ article, onPress, onListen, isPlaying }: Props) {
+export function ArticleRow({
+  article,
+  onPress,
+  onListen,
+  onEnqueue,
+  isPlaying,
+  isQueued,
+}: Props) {
   const { colors } = useTheme();
   const ready = article.status === 'ready';
 
@@ -69,6 +78,21 @@ export function ArticleRow({ article, onPress, onListen, isPlaying }: Props) {
           >
             <Text style={[styles.listenLabel, { color: colors.text }]}>
               {isPlaying ? '❚❚  Playing' : '▶  Listen'}
+            </Text>
+          </Pressable>
+          <Pressable
+            testID={`queue-button-${article.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={isQueued ? 'Queued' : 'Add to queue'}
+            onPress={onEnqueue}
+            style={({ pressed }) => [
+              styles.queueBtn,
+              { backgroundColor: colors.surfaceMuted },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={[styles.listenLabel, { color: isQueued ? colors.success : colors.text }]}>
+              {isQueued ? '✓ Queued' : '＋ Queue'}
             </Text>
           </Pressable>
         </View>
@@ -126,8 +150,14 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    gap: spacing.sm,
   },
   listenBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+  },
+  queueBtn: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radii.pill,

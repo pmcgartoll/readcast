@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { useLibrary } from '../state/LibraryProvider';
 import { isValidUrl } from '../services/url';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, layout, radii, spacing, useTheme } from '../theme';
 
 export function AddUrlScreen() {
   const { colors } = useTheme();
@@ -96,7 +96,13 @@ export function AddUrlScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: spacing.lg },
+  container: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

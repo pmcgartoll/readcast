@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { DEV_STUB_MODE, API_BASE_URL } from '../config';
 import { useLibrary } from '../state/LibraryProvider';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, layout, radii, spacing, useTheme } from '../theme';
 
 export function SettingsScreen() {
   const { colors } = useTheme();
@@ -103,7 +103,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
   },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
+  },
   section: { marginBottom: spacing.xl },
   sectionTitle: {
     fontFamily: fonts.medium,

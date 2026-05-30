@@ -64,6 +64,12 @@ export const radii = {
   pill: 999,
 } as const;
 
+/** Caps content width so the mobile-first layout looks right on web/tablets. */
+export const layout = {
+  contentMaxWidth: 600,
+  artMaxWidth: 360,
+} as const;
+
 export const fonts = {
   serif: 'DMSerifDisplay_400Regular',
   body: 'DMSans_400Regular',

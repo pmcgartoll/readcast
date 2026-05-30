@@ -16,7 +16,7 @@ import { ArticleRow } from '../components/ArticleRow';
 import { EmptyState } from '../components/EmptyState';
 import { usePlayback } from '../playback/PlaybackProvider';
 import { useLibrary } from '../state/LibraryProvider';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, layout, radii, spacing, useTheme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -26,7 +26,7 @@ export function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { articles, isLoading, refresh } = useLibrary();
-  const { playArticle, current, isPlaying } = usePlayback();
+  const { playArticle, enqueue, isQueued, current, isPlaying } = usePlayback();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -95,7 +95,9 @@ export function LibraryScreen() {
               article={item}
               onPress={() => navigation.navigate('Reader', { articleId: item.id })}
               onListen={() => onListen(item.id)}
+              onEnqueue={() => enqueue(item)}
               isPlaying={current?.id === item.id && isPlaying}
+              isQueued={isQueued(item.id)}
             />
           )}
         />
@@ -113,6 +115,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
     gap: spacing.md,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
   },
   title: { fontFamily: fonts.serif, fontSize: 32 },
   subtitle: { fontFamily: fonts.body, fontSize: 14, marginTop: 2 },
@@ -122,6 +127,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   addLabel: { fontFamily: fonts.medium, fontSize: 15 },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, flexGrow: 1 },
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
+  },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

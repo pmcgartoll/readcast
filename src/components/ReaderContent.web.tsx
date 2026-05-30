@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 
-import { spacing, useTheme } from '../theme';
+import { layout, spacing, useTheme } from '../theme';
 import type { ReaderContentProps } from './readerContentProps';
 
 /**
@@ -61,6 +61,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: 120,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth + 80,
+    alignSelf: 'center',
   },
   hero: {
     height: 180,

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '../components/EmptyState';
 import { usePlayback } from '../playback/PlaybackProvider';
 import { formatDuration } from '../services/format';
-import { fonts, radii, spacing, useTheme } from '../theme';
+import { fonts, layout, radii, spacing, useTheme } from '../theme';
 
 export function ListenScreen() {
   const { colors } = useTheme();
@@ -168,7 +168,13 @@ function ControlButton({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
+  },
   screenTitle: {
     fontFamily: fonts.serif,
     fontSize: 28,
@@ -179,7 +185,9 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, justifyContent: 'center' },
   art: {
     width: '100%',
-    aspectRatio: 1.6,
+    maxWidth: layout.artMaxWidth,
+    alignSelf: 'center',
+    aspectRatio: 1.4,
     borderRadius: radii.lg,
     marginBottom: spacing.xl,
   },
