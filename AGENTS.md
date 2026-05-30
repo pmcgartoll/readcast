@@ -29,9 +29,12 @@ lock screen and **CarPlay** (iOS).
   `expo-sqlite` never enters the web bundle.
 - **Services:** `src/services/` — `ingest` (pending -> ready/failed),
   `audio` (chunked TTS jobs), plus `textChunk`, `format`, `url`, `readerHtml`.
-- **Playback seam:** `src/playback/` — `PlaybackEngine` interface with a
-  simulated engine (`stubEngine.ts`) for web/dev. The native engine
-  (react-native-track-player) drops in via `engine.ts` without UI changes.
+- **Playback seam:** `src/playback/` — `PlaybackEngine` interface. `engine.ts`
+  (native) returns the simulated `stubEngine.ts` today; the native engine
+  (react-native-track-player) drops in here without UI changes. `engine.web.ts`
+  is a real web engine that plays the episode's audio segments through an
+  `HTMLAudioElement` (sequential playback, `setRate` via `playbackRate`), so the
+  browser can actually play TTS audio when `EXPO_PUBLIC_STUB_MODE=false`.
 - **CarPlay seam:** `src/playback/carplay.ts` (native) / `carplay.web.ts`
   (no-op), wired into `PlaybackProvider`. Native sources + config plugin live in
   `carplay/` and `plugins/withCarPlay.js`. See `carplay/README.md`.
@@ -88,6 +91,19 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 What web covers: navigation, forms/validation, library, reader layout, player UI
 + queue, simulated playback progress. What it does NOT cover: real native audio,
 lock screen, CarPlay, Share Extension, on-device SQLite.
+
+To actually hear TTS audio in the browser (real OpenAI synthesis through the web
+engine), run the backend (`cd backend && npm run dev`, with `backend/.env`) and
+start web with stub mode off:
+
+```bash
+EXPO_PUBLIC_STUB_MODE=false npx expo start --web --port 8090
+```
+
+In dev, `engine.web.ts` exposes the live element on `globalThis.__readcastAudio`,
+so the verification loop can assert real playback (e.g. via CDP: `currentTime`
+advancing, or decode `src` with `AudioContext.decodeAudioData` to check the
+waveform is non-silent).
 
 ### Tier 3 — native e2e (later)
 

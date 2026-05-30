@@ -108,6 +108,12 @@ export function createWebEngine(): PlaybackEngine {
     if (!audio) {
       audio = new Audio();
       audio.addEventListener('ended', onSegmentEnded);
+      // Dev-only test hook: expose the live audio element so the web
+      // verification loop can confirm real playback (currentTime advancing,
+      // non-silent output).
+      if (__DEV__) {
+        (globalThis as Record<string, unknown>).__readcastAudio = audio;
+      }
     }
     currentSegment = index;
     audio.src = segmentUris[index];
